@@ -13,8 +13,8 @@
          notify/6,
          notify/7,
          notify/8,
-         notify_with_key/9,
-         notify_with_key/7]).
+         notify_with_key/8,
+         notify_with_key/10]).
 
 -export([test/0]).
 
@@ -66,10 +66,10 @@ notify(Type, Reason, Message, Module, Line, Trace, Request, ProjectRoot)
     gen_server:cast(?MODULE, {exception, Type, Reason, Message, Module, Line, Trace, Request, ProjectRoot}).
 
 
-notify_with_key(Key, Type, Reason, Message, Module, Line, Trace) ->
-    gen_server:cast(?MODULE, {with_key, Key, Type, Reason, Message, Module, Line, Trace, undefined, undefined}).
+notify_with_key(Key, Type, Reason, Message, Module, Line, Trace, Session) ->
+    gen_server:cast(?MODULE, {with_key, Key, Type, Reason, Message, Module, Line, Trace, undefined, undefined, Session}).
 
-notify_with_key(Key, Type, Reason, Message, Module, Line, Trace, Request, ProjectRoot) ->
+notify_with_key(Key, Type, Reason, Message, Module, Line, Trace, Request, ProjectRoot, Session) ->
     gen_server:cast(?MODULE, {with_key, Key, Type, Reason, Message, Module, Line, Trace, Request, ProjectRoot}).
 
 
@@ -96,10 +96,10 @@ handle_cast({exception, Type, Reason, Message, Module, Line, Trace}, S) ->
     handle_cast({exception, Type, Reason, Message, Module, Line, Trace, undefined, undefined}, S);
 
 handle_cast({exception, Type, Reason, Message, Module, Line, Trace, Request, ProjectRoot}, S) ->
-    handle_cast({with_key, S#state.api_key, Type, Reason, Message, Module, Line, Trace, Request, ProjectRoot}, S);
+    handle_cast({with_key, S#state.api_key, Type, Reason, Message, Module, Line, Trace, Request, ProjectRoot, []}, S);
 
 % New Version with additional Request + ProjectRoot
-handle_cast(Raw = {with_key, _, _, _, _, _, _, _, _, _}, S) ->
+handle_cast(Raw = {with_key, _, _, _, _, _, _, _, _, _, _}, S) ->
     XML = generate_xml(Raw, S),
     case send_to_airbrake(XML) of
         ok ->
@@ -126,7 +126,7 @@ handle_info(_, S) ->
 %% =============================================================================
 
 %% Convert some exception data into Airbrake API format
-generate_xml({with_key, Key, _Type, Reason, Message, Module, Line, Trace, Request, ProjectRoot}, S) ->
+generate_xml({with_key, Key, _Type, Reason, Message, Module, Line, Trace, Request, ProjectRoot, Session}, S) ->
     Server0 = [{'environment-name', [S#state.environment]}],
     Server1 = maybe_prepend('project-root', ProjectRoot, Server0),
     Notice0 = [{'server-environment', Server1}],
@@ -141,7 +141,13 @@ generate_xml({with_key, Key, _Type, Reason, Message, Module, Line, Trace, Reques
                 [{class,     [to_s(Reason)]},
                  {message,   [to_s(Message)]},
                  {backtrace, stacktrace_to_xml_struct([{Module, Line}|Trace])}
-                ]}
+                ]},
+               {'request',
+                [{'session',
+                  lists:map(fun({Key, Value}) -> 
+                    {'var', [{key, Key}], [Value]} end, Session)
+                 }]
+                }
                |Notice1],
     Root = [{notice, [{version,"2.0"}], Notice2}],
     lists:flatten(xmerl:export_simple(Root, xmerl_xml)).
