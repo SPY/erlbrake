@@ -8,11 +8,13 @@
 -behaviour(gen_server).
 
 %% API
--export([start_link/2]).
+-export([start_link/0, start_link/2]).
 -export([notify/5,
          notify/6,
          notify/7,
-         notify/8]).
+         notify/8,
+         notify_with_key/9,
+         notify_with_key/7]).
 
 -export([test/0]).
 
@@ -40,6 +42,9 @@ end).
 %% API Functions
 %% =============================================================================
 
+start_link() ->
+    gen_server:start_link({local, ?MODULE}, ?MODULE, [], []).
+
 start_link(Environment, ApiKey)
   when is_list(Environment) andalso
        is_list(ApiKey) ->
@@ -61,10 +66,19 @@ notify(Type, Reason, Message, Module, Line, Trace, Request, ProjectRoot)
     gen_server:cast(?MODULE, {exception, Type, Reason, Message, Module, Line, Trace, Request, ProjectRoot}).
 
 
+notify_with_key(Key, Type, Reason, Message, Module, Line, Trace) ->
+    gen_server:cast(?MODULE, {with_key, Key, Type, Reason, Message, Module, Line, Trace, undefined, undefined}).
+
+notify_with_key(Key, Type, Reason, Message, Module, Line, Trace, Request, ProjectRoot) ->
+    gen_server:cast(?MODULE, {with_key, Key, Type, Reason, Message, Module, Line, Trace, Request, ProjectRoot}).
+
+
 %% =============================================================================
 %% Generic Server Callbacks
 %% =============================================================================
 
+init([]) ->
+    {ok, #state{environment = production}};
 init([Environment, ApiKey]) ->
     {ok, #state{environment = Environment, api_key = ApiKey}}.
 
@@ -80,9 +94,12 @@ handle_call(_, _, S) ->
 % Old version, for backwardcompatiblity (old versions, full inbox, ...)
 handle_cast({exception, Type, Reason, Message, Module, Line, Trace}, S) ->
     handle_cast({exception, Type, Reason, Message, Module, Line, Trace, undefined, undefined}, S);
-    
+
+handle_cast({exception, Type, Reason, Message, Module, Line, Trace, Request, ProjectRoot}, S) ->
+    handle_cast({with_key, S#state.api_key, Type, Reason, Message, Module, Line, Trace, Request, ProjectRoot}, S);
+
 % New Version with additional Request + ProjectRoot
-handle_cast(Raw = {exception, _, _, _, _, _, _, _, _}, S) ->
+handle_cast(Raw = {with_key, _, _, _, _, _, _, _, _, _}, S) ->
     XML = generate_xml(Raw, S),
     case send_to_airbrake(XML) of
         ok ->
@@ -109,12 +126,12 @@ handle_info(_, S) ->
 %% =============================================================================
 
 %% Convert some exception data into Airbrake API format
-generate_xml({exception, _Type, Reason, Message, Module, Line, Trace, Request, ProjectRoot}, S) ->
+generate_xml({with_key, Key, _Type, Reason, Message, Module, Line, Trace, Request, ProjectRoot}, S) ->
     Server0 = [{'environment-name', [S#state.environment]}],
     Server1 = maybe_prepend('project-root', ProjectRoot, Server0),
     Notice0 = [{'server-environment', Server1}],
     Notice1 = maybe_prepend(request, Request, Notice0),
-    Notice2 = [{'api-key', [S#state.api_key]},
+    Notice2 = [{'api-key', [Key]},
                {'notifier',
                 [{name,    ["erlbrake"]},
                  {version, ["0.1"]},

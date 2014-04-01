@@ -26,7 +26,7 @@ start(_StartType, _StartArgs) ->
        
        
        
-       undefined -> {error, no_apikey}
+       undefined -> erlbrake_sup:start_link()
     end.
     
     
