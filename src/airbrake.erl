@@ -72,6 +72,9 @@ notify_with_key(Key, Type, Reason, Message, Module, Line, Trace, Session) ->
 notify_with_key(Key, Type, Reason, Message, Module, Line, Trace, Request, ProjectRoot, Session) ->
     gen_server:cast(?MODULE, {with_key, Key, Type, Reason, Message, Module, Line, Trace, Request, ProjectRoot}).
 
+notify_with_key(Key, Type, Reason, Message, Module, Line, Trace, Request, ProjectRoot, Session, Env) ->
+    gen_server:cast(?MODULE, {with_key, Key, Type, Reason, Message, Module, Line, Trace, Request, ProjectRoot, Env}).
+
 
 %% =============================================================================
 %% Generic Server Callbacks
@@ -98,8 +101,11 @@ handle_cast({exception, Type, Reason, Message, Module, Line, Trace}, S) ->
 handle_cast({exception, Type, Reason, Message, Module, Line, Trace, Request, ProjectRoot}, S) ->
     handle_cast({with_key, S#state.api_key, Type, Reason, Message, Module, Line, Trace, Request, ProjectRoot, []}, S);
 
+handle_cast({with_key, Key, Type, Reason, Message, Module, Line, Trace, Request, ProjectRoot}, S) ->
+    handle_cast({with_key, Key, Type, Reason, Message, Module, Line, Trace, Request, ProjectRoot, [], S#state.environment}, S);
+
 % New Version with additional Request + ProjectRoot
-handle_cast(Raw = {with_key, _, _, _, _, _, _, _, _, _, _}, S) ->
+handle_cast(Raw = {with_key, _, _, _, _, _, _, _, _, _, _, _}, S) ->
     XML = generate_xml(Raw, S),
     case send_to_airbrake(XML) of
         ok ->
@@ -126,8 +132,8 @@ handle_info(_, S) ->
 %% =============================================================================
 
 %% Convert some exception data into Airbrake API format
-generate_xml({with_key, Key, _Type, Reason, Message, Module, Line, Trace, Request, ProjectRoot, Session}, S) ->
-    Server0 = [{'environment-name', [S#state.environment]}],
+generate_xml({with_key, Key, _Type, Reason, Message, Module, Line, Trace, Request, ProjectRoot, Session, Env}, S) ->
+    Server0 = [{'environment-name', [Env]}],
     Server1 = maybe_prepend('project-root', ProjectRoot, Server0),
     Notice0 = [{'server-environment', Server1}],
     Notice1 = maybe_prepend(request, Request, Notice0),
