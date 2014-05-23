@@ -206,6 +206,8 @@ send_http_request(URL, Headers, Method, Body) ->
     case ibrowse:send_req(URL, Headers, Method, Body) of
         {ok, "200", _ResponseHeaders, ResponseBody} ->
             {ok, ResponseBody};
+        {ok, "201", _ResponseHeaders, ResponseBody} ->
+            {ok, ResponseBody};
         {ok, Status, _Headers, _Body} ->
             {error, {unexpected_response_status, Status}};
         Error = {error, _} ->
