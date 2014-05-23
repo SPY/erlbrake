@@ -14,7 +14,9 @@
          notify/7,
          notify/8,
          notify_with_key/8,
-         notify_with_key/10]).
+         notify_with_key/9,
+         notify_with_key/10,
+         notify_with_key/11]).
 
 -export([test/0]).
 
@@ -69,12 +71,14 @@ notify(Type, Reason, Message, Module, Line, Trace, Request, ProjectRoot)
 notify_with_key(Key, Type, Reason, Message, Module, Line, Trace, Session) ->
     gen_server:cast(?MODULE, {with_key, Key, Type, Reason, Message, Module, Line, Trace, undefined, undefined, Session}).
 
+notify_with_key(Key, Type, Reason, Message, Module, Line, Trace, Session, Env) ->
+    gen_server:cast(?MODULE, {with_key, Key, Type, Reason, Message, Module, Line, Trace, undefined, undefined, Session, Env}).
+
 notify_with_key(Key, Type, Reason, Message, Module, Line, Trace, Request, ProjectRoot, Session) ->
     gen_server:cast(?MODULE, {with_key, Key, Type, Reason, Message, Module, Line, Trace, Request, ProjectRoot}).
 
 notify_with_key(Key, Type, Reason, Message, Module, Line, Trace, Request, ProjectRoot, Session, Env) ->
     gen_server:cast(?MODULE, {with_key, Key, Type, Reason, Message, Module, Line, Trace, Request, ProjectRoot, Env}).
-
 
 %% =============================================================================
 %% Generic Server Callbacks
