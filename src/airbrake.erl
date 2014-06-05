@@ -75,10 +75,10 @@ notify_with_key(Key, Type, Reason, Message, Module, Line, Trace, Session, Env) -
     gen_server:cast(?MODULE, {with_key, Key, Type, Reason, Message, Module, Line, Trace, undefined, undefined, Session, Env}).
 
 notify_with_key(Key, Type, Reason, Message, Module, Line, Trace, Request, ProjectRoot, Session) ->
-    gen_server:cast(?MODULE, {with_key, Key, Type, Reason, Message, Module, Line, Trace, Request, ProjectRoot}).
+    gen_server:cast(?MODULE, {with_key, Key, Type, Reason, Message, Module, Line, Trace, Request, ProjectRoot, Session}).
 
 notify_with_key(Key, Type, Reason, Message, Module, Line, Trace, Request, ProjectRoot, Session, Env) ->
-    gen_server:cast(?MODULE, {with_key, Key, Type, Reason, Message, Module, Line, Trace, Request, ProjectRoot, Env}).
+    gen_server:cast(?MODULE, {with_key, Key, Type, Reason, Message, Module, Line, Trace, Request, ProjectRoot, Session, Env}).
 
 %% =============================================================================
 %% Generic Server Callbacks
@@ -105,8 +105,8 @@ handle_cast({exception, Type, Reason, Message, Module, Line, Trace}, S) ->
 handle_cast({exception, Type, Reason, Message, Module, Line, Trace, Request, ProjectRoot}, S) ->
     handle_cast({with_key, S#state.api_key, Type, Reason, Message, Module, Line, Trace, Request, ProjectRoot, []}, S);
 
-handle_cast({with_key, Key, Type, Reason, Message, Module, Line, Trace, Request, ProjectRoot}, S) ->
-    handle_cast({with_key, Key, Type, Reason, Message, Module, Line, Trace, Request, ProjectRoot, [], S#state.environment}, S);
+handle_cast({with_key, Key, Type, Reason, Message, Module, Line, Trace, Request, ProjectRoot, Session}, S) ->
+    handle_cast({with_key, Key, Type, Reason, Message, Module, Line, Trace, Request, ProjectRoot, Session, S#state.environment}, S);
 
 % New Version with additional Request + ProjectRoot
 handle_cast(Raw = {with_key, _, _, _, _, _, _, _, _, _, _, _}, S) ->
